@@ -1,0 +1,1201 @@
+<div class="min-h-screen bg-[#fcf9f9] text-[#241c1c]">
+  <!-- 頂部導航列 -->
+  <header
+    class="border-b border-[#e8dedd] bg-white px-6 py-4 sticky top-0 z-20 shadow-xs"
+  >
+    <div class="mx-auto flex max-w-7xl items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div>
+          <div class="flex items-center gap-2.5">
+            <h1 class="text-xl font-bold tracking-tight text-[#4a1c1c]">
+              台股雷達
+            </h1>
+            <span
+              class="rounded bg-[#fbeae7] px-2 py-0.5 text-xs font-semibold text-[#8f2d1e] border border-[#f3cec7]"
+            >
+              RSI + MACD 共振策略
+            </span>
+          </div>
+          <p class="text-xs text-[#705e5e] mt-0.5">
+            分析追蹤雙多頭突破標的（RSI 6/12 與 MACD 12/26/9）
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 sm:gap-3 text-xs">
+        @if (selectedStock()?.dataDate; as d) {
+          <span
+            class="rounded border border-[#e2d5d3] bg-[#faf6f5] px-2.5 py-1 font-medium text-[#4a3939]"
+          >
+            資料基準日 {{ d }}
+          </span>
+        }
+        <span
+          class="rounded border border-emerald-200 bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-800"
+        >
+          {{ marketStatus === "OPEN" ? "盤中/收盤行情" : "已收盤" }}
+        </span>
+        <span class="text-[#7a6b6b] hidden sm:inline">
+          {{ isLoadingTwse ? "資料載入中…" : quoteSource }}
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-7xl px-4 sm:px-6 py-6 space-y-6">
+    <!-- 指標統計總覽卡片 (4 大指標) -->
+    <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <!-- 雙黃金交叉 (核心主角) -->
+      <article
+        class="rounded-xl border border-[#e8c7b8] bg-[#fffaf8] p-4.5 shadow-xs"
+      >
+        <div class="flex items-center justify-between">
+          <span
+            class="text-xs font-semibold text-[#8f2d1e] uppercase tracking-wide"
+            >多頭強烈共振</span
+          >
+          <span
+            class="rounded bg-[#8f2d1e] px-2 py-0.5 text-[11px] font-semibold text-white"
+            >買進訊號</span
+          >
+        </div>
+        <p class="mt-2 text-xs font-medium text-[#7a605a]">雙黃金交叉標的</p>
+        <div class="mt-1 flex items-baseline gap-1.5">
+          <span class="text-3xl font-extrabold text-[#b82e1f]">
+            {{
+              activeTab() === "WATCHLIST"
+                ? doubleGoldWatchlistCount()
+                : scanProgress().doubleGoldCount
+            }}
+          </span>
+          <span class="text-xs font-medium text-[#7a605a]"
+            >檔 (RSI + MACD 同步金叉)</span
+          >
+        </div>
+        <p class="mt-2 text-xs text-[#8c7a77]">
+          {{
+            activeTab() === "WATCHLIST" ? "觀察名單中符合" : "本次市場掃描發現"
+          }}
+        </p>
+      </article>
+
+      <!-- RSI 金叉 -->
+      <article
+        class="rounded-xl border border-[#e8dedd] bg-white p-4.5 shadow-xs"
+      >
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-medium text-[#705e5e]">短線動能</span>
+          <span
+            class="rounded bg-[#faf0ee] px-1.5 py-0.5 text-[11px] font-semibold text-[#b82e1f]"
+            >RSI 6 / 12</span
+          >
+        </div>
+        <p class="mt-2 text-xs font-medium text-[#523d3d]">RSI 黃金交叉向上</p>
+        <div class="mt-1 flex items-baseline gap-1">
+          <span class="text-2xl font-bold text-[#b82e1f]">
+            {{
+              activeTab() === "WATCHLIST"
+                ? rsiGoldWatchlistCount()
+                : scanProgress().rsiGoldCount
+            }}
+          </span>
+          <span class="text-xs text-[#705e5e]">檔</span>
+        </div>
+        <p class="mt-2 text-xs text-[#8c7a77]">短線 6 日線突破 12 日線</p>
+      </article>
+
+      <!-- MACD 金叉 -->
+      <article
+        class="rounded-xl border border-[#e8dedd] bg-white p-4.5 shadow-xs"
+      >
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-medium text-[#705e5e]">中線趨勢</span>
+          <span
+            class="rounded bg-[#faf0ee] px-1.5 py-0.5 text-[11px] font-semibold text-[#b82e1f]"
+            >EMA 12/26/9</span
+          >
+        </div>
+        <p class="mt-2 text-xs font-medium text-[#523d3d]">MACD 柱狀翻紅金叉</p>
+        <div class="mt-1 flex items-baseline gap-1">
+          <span class="text-2xl font-bold text-[#b82e1f]">
+            {{
+              activeTab() === "WATCHLIST"
+                ? macdGoldWatchlistCount()
+                : scanProgress().macdGoldCount
+            }}
+          </span>
+          <span class="text-xs text-[#705e5e]">檔</span>
+        </div>
+        <p class="mt-2 text-xs text-[#8c7a77]">DIF 突破 MACD / 柱狀值大於 0</p>
+      </article>
+
+      <!-- 大盤加權指數 -->
+      <article
+        class="rounded-xl border border-[#e8dedd] bg-white p-4.5 shadow-xs"
+      >
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-medium text-[#705e5e]">台灣加權指數</span>
+          <span
+            class="rounded bg-[#f5efee] px-1.5 py-0.5 text-[11px] font-semibold text-[#523d3d]"
+            >TAIEX</span
+          >
+        </div>
+        <p class="mt-2 text-xs font-medium text-[#523d3d]">加權股價指數收盤</p>
+        <div class="mt-1 flex items-baseline gap-2">
+          <span class="text-2xl font-bold text-[#241c1c] font-mono">{{
+            marketOverview.index | number: "1.2-2"
+          }}</span>
+          <span
+            [class]="getDirectionClass(marketOverview.change)"
+            class="text-xs font-semibold"
+          >
+            {{ marketOverview.change > 0 ? "+" : ""
+            }}{{ marketOverview.change }} ({{
+              marketOverview.changePercent > 0 ? "+" : ""
+            }}{{ marketOverview.changePercent }}%)
+          </span>
+        </div>
+        <p class="mt-2 text-xs text-[#8c7a77]">
+          成交金額 {{ marketOverview.turnover | number }} 億元
+        </p>
+      </article>
+    </section>
+
+    <!-- 工作區主體：左側清單 / 掃描 + 右側即時深度技術圖表 -->
+    <div class="grid gap-6 lg:grid-cols-12">
+      <!-- 左側面板 (7 cols): 清單與掃描器 -->
+      <div class="lg:col-span-7 space-y-4">
+        <!-- 分頁切換與搜尋操作列 -->
+        <div
+          class="rounded-xl border border-[#e8dedd] bg-white p-4 shadow-xs space-y-3.5"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <!-- Tab 切換 -->
+            <div
+              class="inline-flex rounded-lg bg-[#f5efee] p-1 border border-[#e4d8d6]"
+            >
+              <button
+                (click)="activeTab.set('WATCHLIST')"
+                [class.bg-[#4a1c1c]]="activeTab() === 'WATCHLIST'"
+                [class.text-white]="activeTab() === 'WATCHLIST'"
+                [class.text-[#635050]]="activeTab() !== 'WATCHLIST'"
+                class="flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-xs font-bold transition-all"
+              >
+                <span>我的追蹤觀察名單</span>
+                <span
+                  [class.bg-white]="activeTab() === 'WATCHLIST'"
+                  [class.text-[#4a1c1c]]="activeTab() === 'WATCHLIST'"
+                  [class.bg-[#ded1cf]]="activeTab() !== 'WATCHLIST'"
+                  class="rounded-full px-1.5 py-0.2 text-[10px]"
+                >
+                  {{ watchlist().length }}
+                </span>
+              </button>
+
+              <button
+                (click)="activeTab.set('SCANNER')"
+                [class.bg-[#4a1c1c]]="activeTab() === 'SCANNER'"
+                [class.text-white]="activeTab() === 'SCANNER'"
+                [class.text-[#635050]]="activeTab() !== 'SCANNER'"
+                class="flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-xs font-bold transition-all"
+              >
+                <span>全台股雙金叉掃描器</span>
+                @if (isScanning) {
+                  <span
+                    class="h-2 w-2 rounded-full bg-amber-400 animate-ping"
+                  ></span>
+                }
+              </button>
+            </div>
+
+            <!-- 右側功能按鈕 -->
+            <div class="flex items-center gap-2">
+              <input
+                [(ngModel)]="searchKeyword"
+                placeholder="搜尋代碼、名稱…"
+                class="w-36 sm:w-44 rounded-md border border-[#e0d4d2] px-3 py-1.5 text-xs outline-none focus:border-[#4a1c1c] bg-[#faf6f5]"
+              />
+              <button
+                (click)="openAddDialog()"
+                class="rounded-md bg-[#faf6f5] border border-[#e0d4d2] hover:border-[#4a1c1c] px-3 py-1.5 text-xs font-semibold text-[#4a1c1c] transition-colors"
+                title="手動查詢股票並計算 RSI/MACD"
+              >
+                查詢代碼
+              </button>
+            </div>
+          </div>
+
+          <!-- 掃描器專屬控制面板 (僅在 SCANNER 分頁顯示) -->
+          @if (activeTab() === "SCANNER") {
+            <div
+              class="rounded-lg border border-[#e8d2c8] bg-[#fdf9f7] p-3.5 space-y-3"
+            >
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-semibold text-[#543b35]"
+                    >掃描範圍：</span
+                  >
+                  <select
+                    [(ngModel)]="scanScope"
+                    [disabled]="isScanning"
+                    class="rounded-md border border-[#dac1b6] bg-white px-2.5 py-1 text-xs font-semibold text-[#422c27] outline-none"
+                  >
+                    <option value="HOT_100">
+                      熱門焦點股 (前 100 大成交量)
+                    </option>
+                    <option value="HOT_50">前 50 大活躍權值股</option>
+                    <option value="TOP_300">權值中大型股 (前 300 大)</option>
+                    <option value="ALL_MARKET">
+                      全市場上市股票 (全 1,000+ 檔)
+                    </option>
+                    <option value="WATCHLIST">我的自選觀察名單</option>
+                  </select>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  @if (!isScanning) {
+                    <button
+                      (click)="startScan()"
+                      class="rounded-md bg-[#4a1c1c] hover:bg-[#662222] px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs transition-colors"
+                    >
+                      開始掃描分析
+                    </button>
+                  } @else {
+                    <button
+                      (click)="stopScan()"
+                      class="rounded-md bg-red-700 hover:bg-red-800 px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs transition-colors"
+                    >
+                      停止掃描
+                    </button>
+                  }
+
+                  <!-- 一鍵加入觀察名單按鈕 -->
+                  <button
+                    (click)="addAllDoubleGoldToWatchlist()"
+                    [disabled]="scanProgress().doubleGoldCount === 0"
+                    class="rounded-md bg-[#8f2d1e] hover:bg-[#a63423] disabled:opacity-40 px-3 py-1.5 text-xs font-semibold text-white shadow-xs transition-all flex items-center gap-1.5"
+                    title="將所有符合雙黃金交叉的股票加入觀察名單"
+                  >
+                    <span>整批加入觀察名單</span>
+                    @if (scanProgress().doubleGoldCount > 0) {
+                      <span
+                        class="rounded bg-white/20 px-1.5 py-0.2 text-[10px] font-bold"
+                      >
+                        {{ scanProgress().doubleGoldCount }}
+                      </span>
+                    }
+                  </button>
+                </div>
+              </div>
+
+              <!-- 掃描進度指示條 -->
+              @if (isScanning || scanProgress().scanned > 0) {
+                <div class="space-y-1.5 pt-1">
+                  <div
+                    class="flex justify-between text-[11px] font-semibold text-[#543b35]"
+                  >
+                    <span class="flex items-center gap-1">
+                      @if (isScanning) {
+                        <span
+                          >正在分析：{{
+                            scanProgress().currentStock || "計算指標中…"
+                          }}</span
+                        >
+                      } @else {
+                        <span>掃描完成</span>
+                      }
+                    </span>
+                    <span>
+                      已完成 {{ scanProgress().scanned }} /
+                      {{ scanProgress().total }} ({{ scanProgress().percent }}%)
+                      · 雙金叉:
+                      <b class="text-[#b82e1f] font-mono">{{
+                        scanProgress().doubleGoldCount
+                      }}</b>
+                      檔
+                    </span>
+                  </div>
+                  <div
+                    class="h-1.5 w-full overflow-hidden rounded-full bg-[#ebdcd5]"
+                  >
+                    <div
+                      class="h-full bg-[#b82e1f] transition-all duration-300"
+                      [style.width.%]="scanProgress().percent"
+                    ></div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- 篩選條件過濾標籤 -->
+          <div
+            class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[#ede4e3]"
+          >
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="text-[11px] font-semibold text-[#705e5e]"
+                >策略篩選：</span
+              >
+              <button
+                (click)="filterType.set('DOUBLE_GOLD')"
+                [class.bg-[#b82e1f]]="filterType() === 'DOUBLE_GOLD'"
+                [class.text-white]="filterType() === 'DOUBLE_GOLD'"
+                [class.bg-[#f5efee]]="filterType() !== 'DOUBLE_GOLD'"
+                [class.text-[#4a1c1c]]="filterType() !== 'DOUBLE_GOLD'"
+                class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
+              >
+                雙黃金交叉 (共振)
+              </button>
+              <button
+                (click)="filterType.set('RSI_GOLD')"
+                [class.bg-[#4a1c1c]]="filterType() === 'RSI_GOLD'"
+                [class.text-white]="filterType() === 'RSI_GOLD'"
+                [class.bg-[#f5efee]]="filterType() !== 'RSI_GOLD'"
+                [class.text-[#5e4b4b]]="filterType() !== 'RSI_GOLD'"
+                class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
+              >
+                RSI 金叉
+              </button>
+              <button
+                (click)="filterType.set('MACD_GOLD')"
+                [class.bg-[#4a1c1c]]="filterType() === 'MACD_GOLD'"
+                [class.text-white]="filterType() === 'MACD_GOLD'"
+                [class.bg-[#f5efee]]="filterType() !== 'MACD_GOLD'"
+                [class.text-[#5e4b4b]]="filterType() !== 'MACD_GOLD'"
+                class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
+              >
+                MACD 金叉
+              </button>
+              <button
+                (click)="filterType.set('ALL')"
+                [class.bg-[#4a1c1c]]="filterType() === 'ALL'"
+                [class.text-white]="filterType() === 'ALL'"
+                [class.bg-[#f5efee]]="filterType() !== 'ALL'"
+                [class.text-[#5e4b4b]]="filterType() !== 'ALL'"
+                class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
+              >
+                全部顯示
+              </button>
+            </div>
+
+            <!-- MA5 乖離率防追高開關 -->
+            <button
+              (click)="toggleMa5BiasFilter()"
+              [class.bg-emerald-800]="filterByMa5Bias()"
+              [class.text-white]="filterByMa5Bias()"
+              [class.border-emerald-700]="filterByMa5Bias()"
+              [class.bg-[#f5efee]]="!filterByMa5Bias()"
+              [class.text-[#705e5e]]="!filterByMa5Bias()"
+              [class.border-[#e0d4d2]]="!filterByMa5Bias()"
+              class="rounded-md border px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer"
+              title="排除短線過熱或偏離過大的股票，僅保留股價不偏離 MA5 超過 5% 的安全起漲標的"
+            >
+              <span>股價偏離 MA5 ≦ 5%</span>
+              <span class="text-[10px] ml-1 opacity-90">
+                ({{ filterByMa5Bias() ? "已啟用" : "未限制" }})
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 股票清單表格 -->
+        <article
+          class="overflow-hidden rounded-xl border border-[#e8dedd] bg-white shadow-xs"
+        >
+          <!-- 表頭 -->
+          <div
+            class="grid grid-cols-[1.4fr_1fr_1.1fr_1.1fr_56px] items-center gap-2 border-b border-[#e8dedd] bg-[#f8f4f3] px-4 py-3 text-xs font-semibold text-[#705e5e]"
+          >
+            <span>股票 / 訊號評級</span>
+            <span class="text-right">成交價 / MA5 乖離</span>
+            <span class="text-right">RSI (6 / 12)</span>
+            <span class="text-right">MACD (DIF / 柱狀)</span>
+            <span class="text-center">狀態</span>
+          </div>
+
+          <!-- 清單項目 (分頁資料來源) -->
+          @let currentList =
+            activeTab() === "WATCHLIST"
+              ? filteredWatchlist()
+              : filteredScannedStocks();
+
+          <div class="divide-y divide-[#f2e9e8] max-h-[580px] overflow-y-auto">
+            @for (stock of currentList; track stock.code) {
+              <div
+                (click)="selectStock(stock.code)"
+                [class.bg-[#fcf5f4]]="selectedStockCode() === stock.code"
+                [class.border-l-4]="selectedStockCode() === stock.code"
+                [class.border-l-[#8f2d1e]]="selectedStockCode() === stock.code"
+                class="grid grid-cols-[1.4fr_1fr_1.1fr_1.1fr_56px] items-center gap-2 px-4 py-3 text-left text-xs hover:bg-[#faf4f3] cursor-pointer transition-colors"
+              >
+                <!-- 股票代號與名稱 + 訊號徽章 -->
+                <div>
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-sm font-bold text-[#241c1c]">{{
+                      stock.name
+                    }}</span>
+                    <span class="font-mono text-xs text-[#705e5e]">{{
+                      stock.code
+                    }}</span>
+                  </div>
+                  <div class="mt-1 flex flex-wrap gap-1">
+                    @if (stock.isDoubleGoldenCross) {
+                      <span
+                        class="rounded bg-[#8f2d1e] px-1.5 py-0.2 text-[10px] font-semibold text-white"
+                      >
+                        雙金叉共振
+                      </span>
+                    } @else if (stock.isRsiGoldenCross) {
+                      <span
+                        class="rounded bg-[#fbeae7] px-1.5 py-0.2 text-[10px] font-semibold text-[#b82e1f]"
+                      >
+                        RSI 金叉
+                      </span>
+                    } @else if (stock.isMacdGoldenCross) {
+                      <span
+                        class="rounded bg-[#f7efe8] px-1.5 py-0.2 text-[10px] font-semibold text-[#8f4b23]"
+                      >
+                        MACD 金叉
+                      </span>
+                    } @else {
+                      <span
+                        class="rounded bg-[#f0eae9] px-1.5 py-0.2 text-[10px] text-[#705e5e]"
+                      >
+                        常態整理
+                      </span>
+                    }
+                  </div>
+                </div>
+
+                <!-- 價格、漲跌幅與 MA5 乖離 -->
+                <div class="text-right">
+                  <p class="font-bold font-mono text-sm text-[#241c1c]">
+                    {{ stock.price | number: "1.0-2" }}
+                  </p>
+                  <p
+                    [class]="getDirectionClass(stock.change)"
+                    class="font-semibold text-[11px] font-mono"
+                  >
+                    {{ stock.change > 0 ? "+" : "" }}{{ stock.change }} ({{
+                      stock.changePercent > 0 ? "+" : ""
+                    }}{{ stock.changePercent }}%)
+                  </p>
+                  <p class="text-[10px] text-[#705e5e] font-mono mt-0.5">
+                    MA5 {{ stock.ma5 | number: "1.0-1" }}
+                    <span
+                      [class.text-emerald-700]="stock.isWithinMa5Bias"
+                      [class.font-semibold]="stock.isWithinMa5Bias"
+                      [class.text-[#b82e1f]]="!stock.isWithinMa5Bias"
+                      title="5日均線乖離率"
+                    >
+                      ({{ stock.ma5Bias > 0 ? "+" : "" }}{{ stock.ma5Bias }}%)
+                    </span>
+                  </p>
+                </div>
+
+                <!-- RSI (6 / 12) 指標 -->
+                <div class="text-right space-y-0.5">
+                  <div
+                    class="font-mono font-bold flex items-center justify-end gap-1"
+                  >
+                    <span class="text-[#b82e1f]">{{
+                      stock.rsi6 | number: "1.1-1"
+                    }}</span>
+                    <span class="text-[#9e8f8e]">/</span>
+                    <span class="text-[#4a3939]">{{
+                      stock.rsi12 | number: "1.1-1"
+                    }}</span>
+                  </div>
+                  @if (stock.isRsiGoldenCross) {
+                    <span
+                      class="inline-block text-[10px] font-semibold text-[#b82e1f] bg-[#fbeae7] rounded px-1"
+                    >
+                      向上金叉
+                    </span>
+                  } @else {
+                    <span class="inline-block text-[10px] text-[#8c7a77]"
+                      >中性排列</span
+                    >
+                  }
+                </div>
+
+                <!-- MACD 指標 -->
+                <div class="text-right space-y-0.5">
+                  <div class="font-mono font-semibold text-[11px]">
+                    DIF {{ stock.dif | number: "1.1-2" }}
+                  </div>
+                  <div class="text-[10px] font-mono">
+                    柱狀
+                    <b [class]="stock.osc >= 0 ? 'price-up' : 'price-down'">
+                      {{ stock.osc > 0 ? "+" : ""
+                      }}{{ stock.osc | number: "1.1-2" }}
+                    </b>
+                  </div>
+                </div>
+
+                <!-- 操作欄位 (加入/移除觀察名單) -->
+                <div class="text-center">
+                  @if (activeTab() === "WATCHLIST") {
+                    <button
+                      (click)="removeStockFromWatchlist(stock.code, $event)"
+                      class="text-xs text-[#9e8f8e] hover:text-[#b82e1f] font-semibold p-1 transition-colors"
+                      title="從觀察名單移除"
+                    >
+                      移除
+                    </button>
+                  } @else {
+                    <button
+                      (click)="toggleWatchlist(stock, $event)"
+                      [class.bg-emerald-700]="isWatched(stock.code)"
+                      [class.text-white]="isWatched(stock.code)"
+                      [class.border-emerald-700]="isWatched(stock.code)"
+                      [class.bg-[#faf6f5]]="!isWatched(stock.code)"
+                      [class.text-[#5e4b4b]]="!isWatched(stock.code)"
+                      [class.border-[#e0d4d2]]="!isWatched(stock.code)"
+                      class="rounded border px-1.5 py-0.5 text-[10px] font-semibold transition-colors"
+                    >
+                      {{ isWatched(stock.code) ? "已加" : "加入" }}
+                    </button>
+                  }
+                </div>
+              </div>
+            } @empty {
+              <div class="p-12 text-center space-y-3">
+                <p class="font-semibold text-sm text-[#705e5e]">
+                  @if (activeTab() === "WATCHLIST") {
+                    觀察名單中尚無符合篩選條件的股票
+                  } @else if (isScanning) {
+                    正在掃描分析中，請稍候…
+                  } @else {
+                    尚未執行掃描或無符合條件股票，請點選上方「開始掃描分析」
+                  }
+                </p>
+                @if (activeTab() === "WATCHLIST") {
+                  <button
+                    (click)="activeTab.set('SCANNER')"
+                    class="rounded-md bg-[#4a1c1c] px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#662222]"
+                  >
+                    前往全台股掃描器篩選標的
+                  </button>
+                }
+              </div>
+            }
+          </div>
+
+          <!-- 表格底部提示 -->
+          <div
+            class="border-t border-[#e8dedd] bg-[#f8f4f3] px-4 py-2.5 text-xs text-[#705e5e] flex justify-between items-center"
+          >
+            <span>符合清單共 {{ currentList.length }} 檔</span>
+            @if (activeTab() === "WATCHLIST") {
+              <button
+                (click)="refreshWatchlist()"
+                [disabled]="isLoadingWatchlist"
+                class="font-semibold text-[#4a1c1c] hover:underline"
+              >
+                重新計算觀察名單指標
+              </button>
+            }
+          </div>
+        </article>
+      </div>
+
+      <!-- 右側面板 (5 cols): 選取股票的深度技術指標與 SVG 圖表 -->
+      <div class="lg:col-span-5">
+        @if (selectedStock(); as stock) {
+          <article
+            class="rounded-xl border border-[#e8dedd] bg-white p-5 shadow-xs space-y-4.5 sticky top-20"
+          >
+            <!-- 股票標題與即時行情 -->
+            <div
+              class="flex items-start justify-between border-b border-[#eee4e3] pb-4"
+            >
+              <div>
+                <div class="flex items-center gap-2">
+                  <h2 class="text-xl font-bold text-[#4a1c1c]">
+                    {{ stock.name }}
+                  </h2>
+                  <span class="font-mono text-xs font-semibold text-[#705e5e]">
+                    {{ stock.code }} · 上市
+                    @if (stock.dataDate) {
+                      · {{ stock.dataDate }}
+                    }
+                  </span>
+                </div>
+                <div class="mt-2 flex items-baseline gap-2">
+                  <span
+                    class="text-3xl font-extrabold font-mono text-[#241c1c]"
+                    >{{ stock.price | number: "1.0-2" }}</span
+                  >
+                  <span
+                    [class]="getDirectionClass(stock.change)"
+                    class="text-xs font-bold font-mono"
+                  >
+                    {{ stock.change > 0 ? "+" : "" }}{{ stock.change }} ({{
+                      stock.changePercent > 0 ? "+" : ""
+                    }}{{ stock.changePercent }}%)
+                  </span>
+                </div>
+              </div>
+
+              <!-- 觀察名單開關 -->
+              <button
+                (click)="toggleWatchlist(stock)"
+                [class.bg-emerald-800]="isWatched(stock.code)"
+                [class.text-white]="isWatched(stock.code)"
+                [class.border-emerald-700]="isWatched(stock.code)"
+                [class.bg-[#faf6f5]]="!isWatched(stock.code)"
+                [class.text-[#4a1c1c]]="!isWatched(stock.code)"
+                [class.border-[#e0d4d2]]="!isWatched(stock.code)"
+                class="rounded-md border px-3 py-1.5 text-xs font-semibold transition-colors"
+              >
+                <span>{{
+                  isWatched(stock.code) ? "觀察名單中" : "加入觀察名單"
+                }}</span>
+              </button>
+            </div>
+
+            <!-- 基本面、估值與法人籌碼 -->
+            @if (selectedStockMetrics(); as metrics) {
+              <section class="rounded-lg border border-[#e8dedd] bg-[#fbf8f7] p-4 space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 class="text-sm font-bold text-[#4a1c1c]">基本面與法人籌碼</h3>
+                    <p class="mt-0.5 text-[10px] text-[#705e5e]">季度 EPS、估值與最近可取得的法人日報</p>
+                  </div>
+                  <button
+                    (click)="refreshStockMetrics()"
+                    [disabled]="isLoadingEps || isLoadingInstitutional"
+                    class="rounded border border-[#e0d4d2] bg-white px-2.5 py-1 text-[10px] font-semibold text-[#4a1c1c] hover:border-[#8f2d1e] disabled:opacity-50"
+                  >
+                    {{ isLoadingEps || isLoadingInstitutional ? "更新中…" : "更新資料" }}
+                  </button>
+                  <span
+                    [class.bg-emerald-100]="metrics.potentialLabel === '潛力股候選'"
+                    [class.text-emerald-800]="metrics.potentialLabel === '潛力股候選'"
+                    [class.bg-amber-100]="metrics.potentialLabel === '偏多觀察'"
+                    [class.text-amber-800]="metrics.potentialLabel === '偏多觀察'"
+                    [class.bg-[#f0e7e5]]="metrics.potentialLabel === '訊號不足' || metrics.potentialLabel === '資料不足'"
+                    [class.text-[#705e5e]]="metrics.potentialLabel === '訊號不足' || metrics.potentialLabel === '資料不足'"
+                    class="rounded-full px-3 py-1 text-xs font-bold"
+                  >
+                    {{ metrics.potentialLabel }} · {{ metrics.potentialScore }}/{{ metrics.evaluatedSignalCount }}
+                  </span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 md:grid-cols-4">
+                  <div class="rounded-md border border-[#ebdcd5] bg-white p-3">
+                    <span class="block text-[10px] text-[#705e5e]">最新季 EPS</span>
+                    @if (metrics.latestEps; as eps) {
+                      <b class="mt-1 block font-mono text-base">{{ eps.value | number: "1.2-2" }}</b>
+                      <small class="text-[10px] text-[#8a6a6a]">{{ eps.year }} Q{{ eps.quarter }}</small>
+                    } @else {
+                      <b class="mt-1 block font-mono text-base">{{ isLoadingEps ? "載入中…" : "--" }}</b>
+                    }
+                    @if (metrics.epsYearOverYear !== null) {
+                      <small [class.price-up]="metrics.epsYearOverYear > 0" [class.price-down]="metrics.epsYearOverYear < 0" class="block text-[10px]">
+                        年增 {{ metrics.epsYearOverYear > 0 ? "+" : "" }}{{ metrics.epsYearOverYear }}%
+                      </small>
+                    }
+                  </div>
+                  <div class="rounded-md border border-[#ebdcd5] bg-white p-3">
+                    <span class="block text-[10px] text-[#705e5e]">Forward PE（年化估算）</span>
+                    <b class="mt-1 block font-mono text-base">{{ metrics.forwardPe !== null ? (metrics.forwardPe | number: "1.1-1") : "--" }}</b>
+                    <small class="text-[10px] text-[#8a6a6a]">股價 ÷ (最新季 EPS × 4)</small>
+                  </div>
+                  @if (metrics.institutionalFlow; as flow) {
+                    <div class="rounded-md border border-[#ebdcd5] bg-white p-3">
+                      <span class="block text-[10px] text-[#705e5e]">外資買賣超</span>
+                      <b [class.price-up]="flow.foreignNetShares > 0" [class.price-down]="flow.foreignNetShares < 0" class="mt-1 block font-mono text-base">
+                        {{ flow.foreignNetShares > 0 ? "+" : "" }}{{ flow.foreignNetShares / 1000 | number: "1.0-2" }} 張
+                      </b>
+                    </div>
+                    <div class="rounded-md border border-[#ebdcd5] bg-white p-3">
+                      <span class="block text-[10px] text-[#705e5e]">投信 / 自營商</span>
+                      <b class="mt-1 block font-mono text-xs">
+                        <span [class.price-up]="flow.trustNetShares > 0" [class.price-down]="flow.trustNetShares < 0">{{ flow.trustNetShares > 0 ? "+" : "" }}{{ flow.trustNetShares / 1000 | number: "1.0-2" }}</span>
+                        /
+                        <span [class.price-up]="flow.dealerNetShares > 0" [class.price-down]="flow.dealerNetShares < 0">{{ flow.dealerNetShares > 0 ? "+" : "" }}{{ flow.dealerNetShares / 1000 | number: "1.0-2" }}</span>
+                        張
+                      </b>
+                      <small class="text-[10px] text-[#8a6a6a]">投信 / 自營商</small>
+                    </div>
+                  } @else {
+                    <div class="rounded-md border border-[#ebdcd5] bg-white p-3">
+                      <span class="block text-[10px] text-[#705e5e]">法人當日合計</span>
+                      <b class="mt-1 block font-mono text-base">{{ isLoadingInstitutional ? "載入中…" : "--" }}</b>
+                    </div>
+                    <div class="rounded-md border border-[#ebdcd5] bg-white p-3">
+                      <span class="block text-[10px] text-[#705e5e]">法人資料日期</span>
+                      <b class="mt-1 block font-mono text-xs">{{ isLoadingInstitutional ? "載入中…" : "暫無資料" }}</b>
+                    </div>
+                  }
+                </div>
+
+                @if (metrics.institutionalFlow; as flow) {
+                  <div class="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[#ebdcd5] bg-white px-3 py-2 text-xs">
+                    <span class="font-semibold text-[#705e5e]">三大法人合計（{{ metrics.institutionalDate }}）</span>
+                    <b [class.price-up]="flow.totalNetShares > 0" [class.price-down]="flow.totalNetShares < 0" class="font-mono">
+                      {{ flow.totalNetShares > 0 ? "+" : "" }}{{ flow.totalNetShares / 1000 | number: "1.0-2" }} 張
+                    </b>
+                  </div>
+                }
+
+                <div class="grid gap-1.5 border-t border-[#e8dedd] pt-3 sm:grid-cols-2 lg:grid-cols-3">
+                  @for (signal of metrics.signals; track signal.label) {
+                    <div class="flex items-center gap-1.5 text-[10px]">
+                      @if (signal.state === "POSITIVE") {
+                        <span class="font-bold text-emerald-700">✓</span>
+                      } @else if (signal.state === "NEGATIVE") {
+                        <span class="font-bold text-rose-700">×</span>
+                      } @else {
+                        <span class="font-bold text-gray-400">–</span>
+                      }
+                      <span class="text-[#523d3d]">{{ signal.label }}</span>
+                    </div>
+                  }
+                </div>
+                <p class="text-[10px] leading-relaxed text-[#8a6a6a]">
+                  潛力評估為觀察用規則分數（正 EPS、EPS 年增、年化 PE ≤ 20、法人買超、技術雙金叉）；法人數量由股數換算為張。Forward PE 以最近公布單季 EPS 年化，並非分析師一致預估。僅供參考。
+                </p>
+              </section>
+            }
+
+            <!-- 多空共振診斷卡片 -->
+            <div
+              [class.bg-[#fff8f6]]="stock.isDoubleGoldenCross"
+              [class.border-[#e8c7b8]]="stock.isDoubleGoldenCross"
+              [class.bg-[#faf6f5]]="!stock.isDoubleGoldenCross"
+              [class.border-[#e8dedd]]="!stock.isDoubleGoldenCross"
+              class="rounded-lg border p-3.5 space-y-2"
+            >
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-[#523d3d]"
+                  >指標綜合診斷</span
+                >
+                @if (stock.isDoubleGoldenCross) {
+                  <span
+                    class="rounded bg-[#8f2d1e] px-2 py-0.5 text-[10px] font-semibold text-white"
+                  >
+                    雙金叉多頭共振
+                  </span>
+                }
+              </div>
+              <p class="text-xs font-medium text-[#3b2b2b] leading-relaxed">
+                {{ stock.signalReason }}
+              </p>
+              <div class="grid grid-cols-2 gap-2 pt-1 text-[11px]">
+                <div class="rounded bg-white p-2 border border-[#ebdcd5]">
+                  <span class="text-[#705e5e] block">RSI 交叉狀態</span>
+                  <b
+                    [class.text-[#b82e1f]]="stock.isRsiGoldenCross"
+                    class="text-xs font-semibold"
+                  >
+                    {{
+                      stock.isRsiGoldenCross ? "黃金交叉向上" : "中性偏弱震盪"
+                    }}
+                  </b>
+                </div>
+                <div class="rounded bg-white p-2 border border-[#ebdcd5]">
+                  <span class="text-[#705e5e] block">MACD 柱狀體</span>
+                  <b
+                    [class.text-[#b82e1f]]="stock.isMacdGoldenCross"
+                    class="text-xs font-semibold"
+                  >
+                    {{
+                      stock.isMacdGoldenCross ? "柱狀翻紅放大" : "綠柱偏空震盪"
+                    }}
+                  </b>
+                </div>
+              </div>
+            </div>
+
+            <!-- MA5 均線與 5 日乖離率卡片 -->
+            <div
+              class="rounded-lg border border-[#e8dedd] bg-[#fbf8f7] p-3 flex items-center justify-between text-xs"
+            >
+              <div>
+                <span class="text-[#705e5e] text-[10px] block"
+                  >5 日均線 (MA5)</span
+                >
+                <b class="text-sm font-bold font-mono text-[#241c1c]">{{
+                  stock.ma5 | number: "1.0-2"
+                }}</b>
+              </div>
+              <div class="text-center">
+                <span class="text-[#705e5e] text-[10px] block"
+                  >MA5 乖離率 (BIAS)</span
+                >
+                <b
+                  [class.text-emerald-700]="stock.isWithinMa5Bias"
+                  [class.text-[#b82e1f]]="
+                    !stock.isWithinMa5Bias && stock.ma5Bias > 5
+                  "
+                  [class.text-amber-700]="
+                    !stock.isWithinMa5Bias && stock.ma5Bias < -5
+                  "
+                  class="text-sm font-bold font-mono"
+                >
+                  {{ stock.ma5Bias > 0 ? "+" : "" }}{{ stock.ma5Bias }}%
+                </b>
+              </div>
+              <div>
+                @if (stock.isWithinMa5Bias) {
+                  <span
+                    class="rounded bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] font-semibold text-emerald-800"
+                  >
+                    偏離 ≦ 5% (安全起漲)
+                  </span>
+                } @else if (stock.ma5Bias > 5) {
+                  <span
+                    class="rounded bg-rose-50 border border-rose-200 px-2 py-0.5 text-[11px] font-semibold text-rose-800"
+                  >
+                    正乖離 > 5% (留意追高)
+                  </span>
+                } @else {
+                  <span
+                    class="rounded bg-amber-50 border border-amber-200 px-2 py-0.5 text-[11px] font-semibold text-amber-800"
+                  >
+                    負乖離較大 (跌破均線)
+                  </span>
+                }
+              </div>
+            </div>
+
+            <!-- RSI(6) vs RSI(12) 走勢圖表 -->
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-bold text-[#4a1c1c]"
+                  >RSI 相對強弱指標 (6 日 / 12 日)</span
+                >
+                <div
+                  class="flex items-center gap-3 font-mono text-[11px] font-semibold"
+                >
+                  <span class="text-[#b82e1f]"
+                    >RSI(6) {{ stock.rsi6 | number: "1.1-1" }}</span
+                  >
+                  <span class="text-purple-700"
+                    >RSI(12) {{ stock.rsi12 | number: "1.1-1" }}</span
+                  >
+                </div>
+              </div>
+
+              <!-- SVG RSI 折線圖 -->
+              <div
+                class="relative h-28 w-full rounded-lg bg-[#faf6f5] p-2 border border-[#e8dedd]"
+              >
+                <!-- 超買/超賣/中線參考水平線 -->
+                <div
+                  class="absolute inset-x-2 top-[20%] border-t border-dashed border-red-300"
+                >
+                  <span
+                    class="absolute -top-2 right-1 text-[9px] text-red-500 font-mono"
+                    >80 超買</span
+                  >
+                </div>
+                <div
+                  class="absolute inset-x-2 top-[50%] border-t border-dashed border-[#e0d4d2]"
+                >
+                  <span
+                    class="absolute -top-2 right-1 text-[9px] text-gray-500 font-mono"
+                    >50 中線</span
+                  >
+                </div>
+                <div
+                  class="absolute inset-x-2 top-[80%] border-t border-dashed border-emerald-300"
+                >
+                  <span
+                    class="absolute -top-2 right-1 text-[9px] text-emerald-600 font-mono"
+                    >20 超賣</span
+                  >
+                </div>
+
+                <svg
+                  class="h-full w-full"
+                  viewBox="0 0 380 90"
+                  preserveAspectRatio="none"
+                >
+                  <!-- RSI 12 (慢線 - 紫色) -->
+                  <path
+                    [attr.d]="
+                      getSvgLinePath(stock.rsi12History, 380, 90, 0, 100)
+                    "
+                    fill="none"
+                    stroke="#7e22ce"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                  />
+                  <!-- RSI 6 (快線 - 紅色) -->
+                  <path
+                    [attr.d]="
+                      getSvgLinePath(stock.rsi6History, 380, 90, 0, 100)
+                    "
+                    fill="none"
+                    stroke="#b82e1f"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </div>
+            </div>
+
+            <!-- MACD (DIF, MACD, OSC 柱狀圖) -->
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-bold text-[#4a1c1c]"
+                  >MACD 趨勢與差離柱狀體 (OSC)</span
+                >
+                <div
+                  class="flex items-center gap-2 font-mono text-[11px] font-semibold"
+                >
+                  <span class="text-[#b82e1f]"
+                    >DIF {{ stock.dif | number: "1.1-2" }}</span
+                  >
+                  <span class="text-blue-700"
+                    >MACD {{ stock.macd | number: "1.1-2" }}</span
+                  >
+                </div>
+              </div>
+
+              <!-- SVG MACD 柱狀圖 + 雙折線圖 -->
+              <div
+                class="relative h-28 w-full rounded-lg bg-[#faf6f5] p-2 border border-[#e8dedd]"
+              >
+                <!-- 零軸中心線 -->
+                <div
+                  class="absolute inset-x-2 top-1/2 border-t border-gray-400"
+                >
+                  <span
+                    class="absolute -top-2.5 right-1 text-[9px] text-gray-500 font-mono"
+                    >0 軸</span
+                  >
+                </div>
+
+                <svg
+                  class="h-full w-full"
+                  viewBox="0 0 380 90"
+                  preserveAspectRatio="none"
+                >
+                  <!-- OSC 柱狀圖 -->
+                  @for (
+                    bar of getMacdOscBars(stock.oscHistory, 380, 90);
+                    track $index
+                  ) {
+                    <rect
+                      [attr.x]="bar.x"
+                      [attr.y]="bar.y"
+                      [attr.width]="bar.w"
+                      [attr.height]="bar.h"
+                      [attr.fill]="bar.isUp ? '#b82e1f' : '#15803d'"
+                      opacity="0.9"
+                      rx="0.5"
+                    />
+                  }
+                  <!-- DIF 線 (紅) -->
+                  <path
+                    [attr.d]="getSvgLinePath(stock.difHistory, 380, 90)"
+                    fill="none"
+                    stroke="#991b1b"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                  />
+                  <!-- MACD 慢線 (藍) -->
+                  <path
+                    [attr.d]="getSvgLinePath(stock.macdHistory, 380, 90)"
+                    fill="none"
+                    stroke="#1d4ed8"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </div>
+            </div>
+
+            <!-- 成交與日統計 -->
+            <div
+              class="grid grid-cols-4 gap-2 text-center text-xs border-t border-[#eee4e3] pt-3"
+            >
+              <div>
+                <span class="text-[#705e5e] block text-[10px]">開盤</span>
+                <b class="font-mono text-[#241c1c]">{{ stock.open }}</b>
+              </div>
+              <div>
+                <span class="text-[#705e5e] block text-[10px]">最高</span>
+                <b class="price-up font-mono">{{ stock.high }}</b>
+              </div>
+              <div>
+                <span class="text-[#705e5e] block text-[10px]">最低</span>
+                <b class="price-down font-mono">{{ stock.low }}</b>
+              </div>
+              <div>
+                <span class="text-[#705e5e] block text-[10px]">成交量</span>
+                <b class="font-mono text-[#241c1c]">{{
+                  stock.volume | number
+                }}</b>
+              </div>
+            </div>
+          </article>
+        } @else {
+          <div
+            class="rounded-xl border border-dashed border-[#e8dedd] bg-white p-12 text-center text-[#705e5e] space-y-2"
+          >
+            <p class="font-medium text-sm">
+              請點選左側股票以檢視 RSI / MACD 深度指標走勢圖
+            </p>
+          </div>
+        }
+      </div>
+    </div>
+  </main>
+
+  <!-- 手動查詢新增股票 Dialog -->
+  @if (isAddDialogVisible) {
+    <div
+      class="fixed inset-0 z-30 grid place-items-center bg-black/40 p-4"
+      (click)="closeAddDialog()"
+    >
+      <div
+        class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl space-y-4"
+        (click)="$event.stopPropagation()"
+      >
+        <div>
+          <h2 class="text-lg font-bold text-[#4a1c1c]">技術指標即時查詢</h2>
+          <p class="mt-1 text-xs text-[#705e5e]">
+            輸入台股代碼，即時運算最新 RSI、MACD 與 MA5 乖離狀態
+          </p>
+        </div>
+
+        <div class="flex gap-2">
+          <input
+            [(ngModel)]="newStockCode"
+            (keyup.enter)="searchManualStock()"
+            placeholder="例如：2330、3037、2409"
+            class="min-w-0 flex-1 rounded-md border border-[#e0d4d2] px-3 py-2 text-sm outline-none focus:border-[#4a1c1c]"
+            [disabled]="isSearchingManual"
+          />
+          <button
+            (click)="searchManualStock()"
+            [disabled]="isSearchingManual || !newStockCode.trim()"
+            class="rounded-md bg-[#4a1c1c] px-4 py-2 text-xs font-semibold text-white hover:bg-[#662222] disabled:opacity-50"
+          >
+            {{ isSearchingManual ? "計算中…" : "查詢分析" }}
+          </button>
+        </div>
+
+        @if (manualSearchError) {
+          <p class="rounded bg-red-50 p-2.5 text-xs text-red-700 font-medium">
+            {{ manualSearchError }}
+          </p>
+        }
+
+        <!-- 查詢結果預覽卡片 -->
+        @if (manualSearchResult; as result) {
+          <div
+            class="rounded-lg border border-[#e8dedd] bg-[#fbf8f7] p-4 space-y-3"
+          >
+            <div class="flex items-start justify-between">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-base font-bold text-[#241c1c]">{{
+                    result.name
+                  }}</span>
+                  <span class="font-mono text-xs text-[#705e5e]">{{
+                    result.code
+                  }}</span>
+                </div>
+                <p class="mt-1 text-xs font-medium text-[#4a1c1c]">
+                  {{ result.signalReason }}
+                </p>
+              </div>
+              <div class="text-right">
+                <span class="text-lg font-bold font-mono text-[#241c1c]">{{
+                  result.price | number: "1.0-2"
+                }}</span>
+                <span
+                  [class]="getDirectionClass(result.change)"
+                  class="block text-xs font-semibold font-mono"
+                >
+                  {{ result.change > 0 ? "+" : "" }}{{ result.change }} ({{
+                    result.changePercent
+                  }}%)
+                </span>
+              </div>
+            </div>
+
+            <!-- RSI, MACD, MA5 狀態 -->
+            <div class="grid grid-cols-3 gap-2 text-xs">
+              <div class="rounded bg-white p-2 border border-[#ebdcd5]">
+                <span class="text-[#705e5e] block text-[10px]">RSI(6/12)</span>
+                <b class="font-mono text-xs text-[#b82e1f]">{{ result.rsi6 }}</b
+                >/{{ result.rsi12 }}
+                <span
+                  class="block text-[10px] font-semibold mt-0.5"
+                  [class.text-[#b82e1f]]="result.isRsiGoldenCross"
+                >
+                  {{ result.isRsiGoldenCross ? "金叉向上" : "常態整理" }}
+                </span>
+              </div>
+              <div class="rounded bg-white p-2 border border-[#ebdcd5]">
+                <span class="text-[#705e5e] block text-[10px]">MACD (OSC)</span>
+                <b
+                  class="font-mono text-xs"
+                  [class]="result.osc >= 0 ? 'price-up' : 'price-down'"
+                >
+                  {{ result.osc > 0 ? "+" : "" }}{{ result.osc }}
+                </b>
+                <span
+                  class="block text-[10px] font-semibold mt-0.5"
+                  [class.text-[#b82e1f]]="result.isMacdGoldenCross"
+                >
+                  {{ result.isMacdGoldenCross ? "翻紅金叉" : "綠柱整理" }}
+                </span>
+              </div>
+              <div class="rounded bg-white p-2 border border-[#ebdcd5]">
+                <span class="text-[#705e5e] block text-[10px]">MA5 乖離率</span>
+                <b
+                  class="font-mono text-xs"
+                  [class.text-emerald-700]="result.isWithinMa5Bias"
+                  [class.text-[#b82e1f]]="!result.isWithinMa5Bias"
+                >
+                  {{ result.ma5Bias > 0 ? "+" : "" }}{{ result.ma5Bias }}%
+                </b>
+                <span
+                  class="block text-[10px] font-semibold mt-0.5"
+                  [class.text-emerald-700]="result.isWithinMa5Bias"
+                  [class.text-[#b82e1f]]="!result.isWithinMa5Bias"
+                >
+                  {{ result.isWithinMa5Bias ? "偏離 ≦ 5%" : "偏離過大" }}
+                </span>
+              </div>
+            </div>
+          </div>
+        }
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button
+            (click)="closeAddDialog()"
+            class="rounded-md px-4 py-2 text-xs font-semibold text-[#705e5e]"
+          >
+            取消
+          </button>
+          <button
+            (click)="confirmAddManualStock()"
+            [disabled]="!manualSearchResult"
+            class="rounded-md bg-[#4a1c1c] px-4 py-2 text-xs font-semibold text-white hover:bg-[#662222] disabled:opacity-40"
+          >
+            加入觀察名單
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Toast 提示彈出 -->
+  @if (toastMessage) {
+    <div
+      class="fixed bottom-6 right-6 z-40 rounded-lg bg-[#3b1919] px-4 py-2.5 text-xs font-semibold text-white shadow-xl border border-white/10 animate-fade-in"
+    >
+      {{ toastMessage }}
+    </div>
+  }
+</div>
