@@ -17,7 +17,7 @@ import {
 } from './@service/stock-metrics.service';
 
 type ActiveTab = 'WATCHLIST' | 'SCANNER';
-type FilterType = 'DOUBLE_GOLD' | 'RSI_GOLD' | 'MACD_GOLD' | 'ALL';
+type FilterType = 'DOUBLE_GOLD' | 'RSI_GOLD' | 'MACD_GOLD' | 'TRIPLE' | 'ALL';
 type PriceDirection = 'UP' | 'DOWN' | 'FLAT';
 
 interface MarketOverview {
@@ -117,6 +117,7 @@ export class AppComponent implements OnInit, OnDestroy {
     doubleGoldCount: 0,
     rsiGoldCount: 0,
     macdGoldCount: 0,
+    tripleCount: 0,
     isCompleted: false,
   });
   scannedStocks = signal<TechnicalIndicators[]>([]);
@@ -317,6 +318,7 @@ export class AppComponent implements OnInit, OnDestroy {
     let doubleGoldCount = 0;
     let rsiGoldCount = 0;
     let macdGoldCount = 0;
+    let tripleCount = 0;
 
     this.scanProgress.set({
       scanned: 0,
@@ -325,6 +327,7 @@ export class AppComponent implements OnInit, OnDestroy {
       doubleGoldCount: 0,
       rsiGoldCount: 0,
       macdGoldCount: 0,
+      tripleCount: 0,
       isCompleted: false,
     });
 
@@ -345,6 +348,7 @@ export class AppComponent implements OnInit, OnDestroy {
             if (indicators.isDoubleGoldenCross) doubleGoldCount++;
             if (indicators.isRsiGoldenCross) rsiGoldCount++;
             if (indicators.isMacdGoldenCross) macdGoldCount++;
+            if (indicators.triple.isAllMet) tripleCount++;
 
             // 動態更新已掃描的股票列表
             this.scannedStocks.set([...accumulated]);
@@ -362,6 +366,7 @@ export class AppComponent implements OnInit, OnDestroy {
           doubleGoldCount,
           rsiGoldCount,
           macdGoldCount,
+          tripleCount,
           isCompleted: false,
         });
       }
@@ -551,6 +556,8 @@ export class AppComponent implements OnInit, OnDestroy {
         return s.isRsiGoldenCross;
       case 'MACD_GOLD':
         return s.isMacdGoldenCross;
+      case 'TRIPLE':
+        return s.triple.isAllMet;
       case 'ALL':
       default:
         return true;
@@ -566,6 +573,9 @@ export class AppComponent implements OnInit, OnDestroy {
   );
   macdGoldWatchlistCount = computed(
     () => this.watchlist().filter((s) => s.isMacdGoldenCross).length,
+  );
+  tripleWatchlistCount = computed(
+    () => this.watchlist().filter((s) => s.triple.isAllMet).length,
   );
 
   // ==========================================
