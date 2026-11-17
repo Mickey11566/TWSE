@@ -53,9 +53,56 @@ export interface TechnicalIndicators {
   signalRating: SignalRating;
   signalReason: string;
 
+  // 三條件選股：動能(MACD 翻正) + 波動(布林開口) + 趨勢(站上上揚月線)
+  triple: TripleSignal;
+
   isFavorite: boolean;
   dataDate?: string;
   analyzedAt: Date;
+}
+
+/** 三條件選股的各項結果（XQ 日線選股腳本邏輯） */
+export interface TripleSignal {
+  // 條件一：MACD(12,26,9) 柱狀體今天 > 0、昨天 <= 0（用加權收盤價計算）
+  wOsc: number;
+  wOscPrev: number;
+  isMacdTurnPositive: boolean;
+  // 條件二：布林(20, 2) 帶寬變大，且上軌往上、下軌往下
+  bbUpper: number;
+  bbMiddle: number;
+  bbLower: number;
+  bbWidth: number; // (上軌 - 下軌) / 中軌，單位 %
+  bbWidthPrev: number;
+  isBollingerExpanding: boolean;
+  // 條件三：收盤 > MA20，且 MA20 比 N 天前高
+  ma20: number;
+  ma20Prev: number; // N 天前的 MA20
+  isAboveRisingMa20: boolean;
+  // 成交量門檻（張）
+  volumeLots: number;
+  isVolumeEnough: boolean;
+  // 全部成立
+  isAllMet: boolean;
+}
+
+/** 三條件選股參數 */
+export const TRIPLE_SIGNAL_CONFIG = {
+  bbPeriod: 20,
+  bbStdDev: 2,
+  ma20Period: 20,
+  ma20RisingDays: 1, // 均線上揚比較天數，想更嚴格可調成 3 或 5
+  minVolumeLots: 500, // 最低成交量（張），設 0 關閉
+};
+
+export interface StockHistory {
+  closes: number[];
+  highs: number[];
+  lows: number[];
+  dates: string[];
+  latestClose?: number;
+  latestChange?: number;
+  latestChangePercent?: number;
+  latestDate?: string;
 }
 
 export interface ScanProgress {
@@ -66,6 +113,7 @@ export interface ScanProgress {
   doubleGoldCount: number;
   rsiGoldCount: number;
   macdGoldCount: number;
+  tripleCount: number;
   isCompleted: boolean;
 }
 
@@ -78,7 +126,7 @@ const DEFAULT_WATCHLIST_CODES = ['2330', '2317', '2454', '3037', '2409', '3481']
   providedIn: 'root'
 })
 export class TechnicalAnalysisService {
-  private historyCache = new Map<string, { closes: number[]; dates: string[]; timestamp: number }>();
+  private historyCache = new Map<string, StockHistory & { timestamp: number }>();
   private readonly CACHE_TTL_MS = 10 * 60 * 1000; // 10 分鐘快取
 
   constructor(
@@ -177,17 +225,96 @@ export class TechnicalAnalysisService {
     };
   }
 
+  /** 計算簡單移動平均，前 period-1 筆為 NaN */
+  calcSMA(values: number[], period: number): number[] {
+    return values.map((_, i) => {
+      if (i < period - 1) return NaN;
+      let sum = 0;
+      for (let j = i - period + 1; j <= i; j++) sum += values[j];
+      return sum / period;
+    });
+  }
+
+  /** 計算布林通道（用母體標準差） */
+  calcBollinger(values: number[], period = 20, k = 2): { upper: number[]; middle: number[]; lower: number[] } {
+    const middle = this.calcSMA(values, period);
+    const upper: number[] = [];
+    const lower: number[] = [];
+    values.forEach((_, i) => {
+      if (i < period - 1) {
+        upper.push(NaN);
+        lower.push(NaN);
+        return;
+      }
+      let sq = 0;
+      for (let j = i - period + 1; j <= i; j++) sq += (values[j] - middle[i]) ** 2;
+      const sd = Math.sqrt(sq / period);
+      upper.push(middle[i] + k * sd);
+      lower.push(middle[i] - k * sd);
+    });
+    return { upper, middle, lower };
+  }
+
+  /**
+   * 三條件選股：MACD 翻正 + 布林開口 + 站上上揚月線
+   * @param closes 收盤價
+   * @param weightedCloses 加權收盤價 (H + L + 2C) / 4，MACD 用這個算（同 XQ 內建 MACD）
+   * @param volumeShares 當日成交量（股）
+   */
+  calcTripleSignal(closes: number[], weightedCloses: number[], volumeShares: number): TripleSignal | null {
+    const cfg = TRIPLE_SIGNAL_CONFIG;
+    const n = closes.length;
+    if (n < Math.max(cfg.bbPeriod, cfg.ma20Period + cfg.ma20RisingDays) + 1) return null;
+
+    // 條件一：MACD 柱狀體由負轉正（今天 > 0、昨天 <= 0）
+    const wMacd = this.calcMACD(weightedCloses);
+    if (!wMacd) return null;
+    const wOsc = wMacd.osc[n - 1];
+    const wOscPrev = wMacd.osc[n - 2];
+    const isMacdTurnPositive = wOsc > 0 && wOscPrev <= 0;
+
+    // 條件二：布林通道往兩邊張開（帶寬變大 + 上軌上、下軌下）
+    const bb = this.calcBollinger(closes, cfg.bbPeriod, cfg.bbStdDev);
+    const width = (i: number) => (bb.upper[i] - bb.lower[i]) / bb.middle[i];
+    const bbWidth = width(n - 1);
+    const bbWidthPrev = width(n - 2);
+    const isBollingerExpanding =
+      bbWidth > bbWidthPrev && bb.upper[n - 1] > bb.upper[n - 2] && bb.lower[n - 1] < bb.lower[n - 2];
+
+    // 條件三：收盤站上 20 日線，且 20 日線向上
+    const ma = this.calcSMA(closes, cfg.ma20Period);
+    const ma20 = ma[n - 1];
+    const ma20Prev = ma[n - 1 - cfg.ma20RisingDays];
+    const isAboveRisingMa20 = closes[n - 1] > ma20 && ma20 > ma20Prev;
+
+    // 成交量門檻（1 張 = 1000 股）
+    const volumeLots = Math.floor(volumeShares / 1000);
+    const isVolumeEnough = cfg.minVolumeLots <= 0 || volumeLots >= cfg.minVolumeLots;
+
+    const r2 = (v: number) => Number(v.toFixed(2));
+    return {
+      wOsc: Number(wOsc.toFixed(3)),
+      wOscPrev: Number(wOscPrev.toFixed(3)),
+      isMacdTurnPositive,
+      bbUpper: r2(bb.upper[n - 1]),
+      bbMiddle: r2(bb.middle[n - 1]),
+      bbLower: r2(bb.lower[n - 1]),
+      bbWidth: r2(bbWidth * 100),
+      bbWidthPrev: r2(bbWidthPrev * 100),
+      isBollingerExpanding,
+      ma20: r2(ma20),
+      ma20Prev: r2(ma20Prev),
+      isAboveRisingMa20,
+      volumeLots,
+      isVolumeEnough,
+      isAllMet: isMacdTurnPositive && isBollingerExpanding && isAboveRisingMa20 && isVolumeEnough,
+    };
+  }
+
   /**
    * 獲取個股歷史收盤價 (優先透過 Yahoo Finance Proxy，可獲得當日即時收盤價)
    */
-  async getStockHistory(code: string, currentQuote?: TwseDailyQuote): Promise<{
-    closes: number[];
-    dates: string[];
-    latestClose?: number;
-    latestChange?: number;
-    latestChangePercent?: number;
-    latestDate?: string;
-  }> {
+  async getStockHistory(code: string, currentQuote?: TwseDailyQuote): Promise<StockHistory> {
     const cached = this.historyCache.get(code);
     if (cached && Date.now() - cached.timestamp < this.CACHE_TTL_MS) {
       return cached;
@@ -199,14 +326,25 @@ export class TechnicalAnalysisService {
       const res = await firstValueFrom(this.http.get<any>(url));
       if (res?.chart?.result?.[0]?.indicators?.quote?.[0]?.close) {
         const timestamps: number[] = res.chart.result[0].timestamp || [];
-        const rawCloses: (number | null)[] = res.chart.result[0].indicators.quote[0].close;
+        const q = res.chart.result[0].indicators.quote[0];
+        const rawCloses: (number | null)[] = q.close;
+        const rawHighs: (number | null)[] = q.high || [];
+        const rawLows: (number | null)[] = q.low || [];
 
         const validPairs = timestamps
-          .map((ts, idx) => ({ date: new Date(ts * 1000), close: rawCloses[idx] }))
-          .filter(p => p.close !== null && Number.isFinite(p.close)) as { date: Date; close: number }[];
+          .map((ts, idx) => ({
+            date: new Date(ts * 1000),
+            close: rawCloses[idx],
+            // 缺高低價時用收盤價代替
+            high: rawHighs[idx] ?? rawCloses[idx],
+            low: rawLows[idx] ?? rawCloses[idx],
+          }))
+          .filter(p => p.close !== null && Number.isFinite(p.close)) as { date: Date; close: number; high: number; low: number }[];
 
         if (validPairs.length >= 30) {
           const closes = validPairs.map(p => p.close);
+          const highs = validPairs.map(p => p.high);
+          const lows = validPairs.map(p => p.low);
           const dates = validPairs.map(p => `${p.date.getMonth() + 1}/${p.date.getDate()}`);
 
           const lastPair = validPairs[validPairs.length - 1];
@@ -220,6 +358,8 @@ export class TechnicalAnalysisService {
 
           const result = {
             closes,
+            highs,
+            lows,
             dates,
             latestClose,
             latestChange,
@@ -258,7 +398,8 @@ export class TechnicalAnalysisService {
       closes[closes.length - 1] = currentQuote.close;
     }
 
-    const fallbackResult = { closes, dates, timestamp: Date.now() };
+    // 備援資料沒有高低價，用收盤價代替
+    const fallbackResult = { closes, highs: [...closes], lows: [...closes], dates, timestamp: Date.now() };
     this.historyCache.set(code, fallbackResult as any);
     return fallbackResult;
   }
@@ -343,6 +484,11 @@ export class TechnicalAnalysisService {
         signalReason = '【雙死叉偏空格局】RSI 與 MACD 均呈空頭排列，建議持續觀望。';
       }
 
+      // 5. 三條件選股（MACD 用加權收盤價 (H + L + 2C) / 4）
+      const weightedCloses = closes.map((c, i) => (history.highs[i] + history.lows[i] + 2 * c) / 4);
+      const triple = this.calcTripleSignal(closes, weightedCloses, quote.tradeVolume);
+      if (!triple) return null;
+
       // 裁切最近 25 筆給圖表使用
       const chartSliceCount = 25;
       const historyCloses = closes.slice(-chartSliceCount);
@@ -397,6 +543,8 @@ export class TechnicalAnalysisService {
         isDoubleGoldenCross,
         signalRating,
         signalReason,
+
+        triple,
 
         isFavorite: this.isStockInWatchlist(quote.code),
         analyzedAt: new Date()

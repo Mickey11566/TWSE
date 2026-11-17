@@ -367,6 +367,24 @@
                 MACD 金叉
               </button>
               <button
+                (click)="filterType.set('TRIPLE')"
+                [class.bg-[#b82e1f]]="filterType() === 'TRIPLE'"
+                [class.text-white]="filterType() === 'TRIPLE'"
+                [class.bg-[#f5efee]]="filterType() !== 'TRIPLE'"
+                [class.text-[#4a1c1c]]="filterType() !== 'TRIPLE'"
+                class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors"
+                title="MACD 柱狀體翻正 + 布林通道開口 + 站上上揚 20 日線，且成交量 ≥ 500 張"
+              >
+                三條件起漲 (動能+波動+趨勢)
+                <span class="ml-0.5 opacity-90">
+                  {{
+                    activeTab() === "WATCHLIST"
+                      ? tripleWatchlistCount()
+                      : scanProgress().tripleCount
+                  }}
+                </span>
+              </button>
+              <button
                 (click)="filterType.set('ALL')"
                 [class.bg-[#4a1c1c]]="filterType() === 'ALL'"
                 [class.text-white]="filterType() === 'ALL'"
@@ -808,6 +826,93 @@
                   </b>
                 </div>
               </div>
+            </div>
+
+            <!-- 三條件選股：動能 + 波動 + 趨勢 -->
+            <div
+              class="rounded-lg border p-3.5 space-y-2"
+              [class.border-[#e8c7b8]]="stock.triple.isAllMet"
+              [class.bg-[#fffaf8]]="stock.triple.isAllMet"
+              [class.border-[#e8dedd]]="!stock.triple.isAllMet"
+              [class.bg-[#fbf8f7]]="!stock.triple.isAllMet"
+            >
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-[#523d3d]"
+                  >三條件起漲檢查</span
+                >
+                @if (stock.triple.isAllMet) {
+                  <span
+                    class="rounded bg-[#8f2d1e] px-2 py-0.5 text-[10px] font-semibold text-white"
+                  >
+                    全部成立
+                  </span>
+                } @else {
+                  <span class="text-[10px] text-[#8c7a77]">未全部成立</span>
+                }
+              </div>
+              <ul class="space-y-1.5 text-[11px]">
+                <li class="flex items-start justify-between gap-2">
+                  <span class="text-[#523d3d]">
+                    ① MACD 柱狀體由負轉正
+                    <span class="block text-[10px] text-[#8c7a77]"
+                      >加權收盤價 OSC：昨 {{ stock.triple.wOscPrev }} → 今
+                      {{ stock.triple.wOsc }}</span
+                    >
+                  </span>
+                  <b
+                    [class.text-[#b82e1f]]="stock.triple.isMacdTurnPositive"
+                    [class.text-[#8c7a77]]="!stock.triple.isMacdTurnPositive"
+                    >{{ stock.triple.isMacdTurnPositive ? "✔ 成立" : "✘ 未成立" }}</b
+                  >
+                </li>
+                <li class="flex items-start justify-between gap-2">
+                  <span class="text-[#523d3d]">
+                    ② 布林通道開口放大 (20, 2)
+                    <span class="block text-[10px] text-[#8c7a77]"
+                      >帶寬 {{ stock.triple.bbWidthPrev }}% →
+                      {{ stock.triple.bbWidth }}%｜上軌
+                      {{ stock.triple.bbUpper }}／下軌
+                      {{ stock.triple.bbLower }}</span
+                    >
+                  </span>
+                  <b
+                    [class.text-[#b82e1f]]="stock.triple.isBollingerExpanding"
+                    [class.text-[#8c7a77]]="!stock.triple.isBollingerExpanding"
+                    >{{
+                      stock.triple.isBollingerExpanding ? "✔ 成立" : "✘ 未成立"
+                    }}</b
+                  >
+                </li>
+                <li class="flex items-start justify-between gap-2">
+                  <span class="text-[#523d3d]">
+                    ③ 站上 20 日線且月線向上
+                    <span class="block text-[10px] text-[#8c7a77]"
+                      >MA20 {{ stock.triple.ma20Prev }} →
+                      {{ stock.triple.ma20 }}｜收盤 {{ stock.price }}</span
+                    >
+                  </span>
+                  <b
+                    [class.text-[#b82e1f]]="stock.triple.isAboveRisingMa20"
+                    [class.text-[#8c7a77]]="!stock.triple.isAboveRisingMa20"
+                    >{{
+                      stock.triple.isAboveRisingMa20 ? "✔ 成立" : "✘ 未成立"
+                    }}</b
+                  >
+                </li>
+                <li class="flex items-start justify-between gap-2">
+                  <span class="text-[#523d3d]">
+                    成交量 ≥ 500 張
+                    <span class="block text-[10px] text-[#8c7a77]"
+                      >今日 {{ stock.triple.volumeLots | number }} 張</span
+                    >
+                  </span>
+                  <b
+                    [class.text-[#b82e1f]]="stock.triple.isVolumeEnough"
+                    [class.text-[#8c7a77]]="!stock.triple.isVolumeEnough"
+                    >{{ stock.triple.isVolumeEnough ? "✔ 成立" : "✘ 未成立" }}</b
+                  >
+                </li>
+              </ul>
             </div>
 
             <!-- MA5 均線與 5 日乖離率卡片 -->
