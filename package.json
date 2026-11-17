@@ -5,6 +5,8 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
+    "deploy:cf": "ng build && npx wrangler@3 pages deploy dist/stock/browser --project-name twse-screener --branch main --commit-dirty=true",
+    "build:wp":"ng build --base-href ./ --output-path dist/wp && node scripts/pack-wp.mjs",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },
